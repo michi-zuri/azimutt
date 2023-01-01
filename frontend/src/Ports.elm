@@ -1,4 +1,4 @@
-port module Ports exposing (JsMsg(..), MetaInfos, autofocusWithin, blur, click, confetti, confettiPride, createProject, createProjectTmp, deleteProject, downloadFile, fireworks, focus, fullscreen, getColumnStats, getLegacyProjects, getProject, getTableStats, listenHotkeys, mouseDown, moveProjectTo, observeMemosSize, observeSize, observeTableSize, observeTablesSize, onJsMessage, projectDirty, readLocalFile, scrollTo, setMeta, toast, track, unhandledJsMsgError, updateProject, updateProjectTmp)
+port module Ports exposing (JsMsg(..), MetaInfos, autofocusWithin, blur, click, confetti, confettiPride, createProject, createProjectTmp, deleteProject, downloadFile, fireworks, focus, fullscreen, getColumnStats, getProject, getTableStats, listenHotkeys, mouseDown, moveProjectTo, observeMemosSize, observeSize, observeTableSize, observeTablesSize, onJsMessage, projectDirty, readLocalFile, scrollTo, setMeta, toast, track, unhandledJsMsgError, updateProject, updateProjectTmp)
 
 import Dict exposing (Dict)
 import FileValue exposing (File)
@@ -6,7 +6,6 @@ import Json.Decode as Decode exposing (Decoder, Value)
 import Json.Encode as Encode
 import Libs.Json.Decode as Decode
 import Libs.Json.Encode as Encode
-import Libs.List as List
 import Libs.Models exposing (FileContent, SizeChange)
 import Libs.Models.DatabaseUrl as DatabaseUrl exposing (DatabaseUrl)
 import Libs.Models.Delta as Delta exposing (Delta)
@@ -75,11 +74,6 @@ autofocusWithin id =
 toast : String -> String -> Cmd msg
 toast level message =
     messageToJs (Toast level message)
-
-
-getLegacyProjects : Cmd msg
-getLegacyProjects =
-    messageToJs GetLegacyProjects
 
 
 getProject : OrganizationId -> ProjectId -> Cmd msg
@@ -215,7 +209,6 @@ type ElmMsg
     | SetMeta MetaInfos
     | AutofocusWithin HtmlId
     | Toast String String
-    | GetLegacyProjects
     | GetProject OrganizationId ProjectId
     | CreateProjectTmp Project
     | UpdateProjectTmp Project
@@ -238,7 +231,6 @@ type ElmMsg
 
 type JsMsg
     = GotSizes (List SizeChange)
-    | GotLegacyProjects ( List ( ProjectId, Decode.Error ), List ProjectInfo )
     | GotProject (Maybe (Result Decode.Error Project))
     | ProjectDeleted ProjectId
     | GotLocalFile String File FileContent
@@ -316,9 +308,6 @@ elmEncoder elm =
         Toast level message ->
             Encode.object [ ( "kind", "Toast" |> Encode.string ), ( "level", level |> Encode.string ), ( "message", message |> Encode.string ) ]
 
-        GetLegacyProjects ->
-            Encode.object [ ( "kind", "GetLegacyProjects" |> Encode.string ) ]
-
         GetProject organization project ->
             Encode.object [ ( "kind", "GetProject" |> Encode.string ), ( "organization", organization |> OrganizationId.encode ), ( "project", project |> ProjectId.encode ) ]
 
@@ -391,9 +380,6 @@ jsDecoder =
                             )
                         )
 
-                "GotLegacyProjects" ->
-                    Decode.map GotLegacyProjects (Decode.field "projects" projectInfosDecoder)
-
                 "GotProject" ->
                     Decode.map GotProject (Decode.maybeField "project" projectDecoder)
 
@@ -461,22 +447,6 @@ jsDecoder =
         )
 
 
-projectInfosDecoder : Decoder ( List ( ProjectId, Decode.Error ), List ProjectInfo )
-projectInfosDecoder =
-    Decode.list (Decode.tuple Decode.string Decode.value)
-        |> Decode.map
-            (\list ->
-                list
-                    |> List.map
-                        (\( k, v ) ->
-                            v
-                                |> Decode.decodeValue ProjectInfo.decode
-                                |> Result.mapError (\e -> ( k, e ))
-                        )
-                    |> List.resultCollect
-            )
-
-
 projectDecoder : Decoder (Result Decode.Error Project)
 projectDecoder =
     Decode.map (Decode.decodeValue decodeProject) Decode.value
@@ -488,9 +458,6 @@ unhandledJsMsgError msg =
         ++ (case msg of
                 GotSizes _ ->
                     "GotSizes"
-
-                GotLegacyProjects _ ->
-                    "GotLegacyProjects"
 
                 GotProject _ ->
                     "GotProject"

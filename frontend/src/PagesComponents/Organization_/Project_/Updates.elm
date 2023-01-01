@@ -399,10 +399,6 @@ handleJsMessage now currentLayout msg model =
                         )
                     )
 
-        GotLegacyProjects _ ->
-            -- handled in Shared
-            ( model, Cmd.none )
-
         ProjectDeleted _ ->
             -- handled in Shared
             ( model, Cmd.none )
